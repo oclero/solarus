@@ -22,6 +22,7 @@ Engine changes
 * Improve the performance of collisions by using a quadtree.
 * Entities far from the camera are no longer suspended.
 * Destinations can now set to update or not the starting location (#819).
+* Fix crash when main.lua has a syntax error.
 * Fix crash with missing directions in sprites controlled by the engine (#864).
 * Fix sprite:on_animation_finished() and others not working sometimes (#799).
 * Fix straight movement precision.
@@ -98,6 +99,7 @@ Changes that do not introduce incompatibilities:
 Data files format changes
 -------------------------
 
+* New directory logos to put the logo and icons of your quest, used in the GUI.
 * Quest properties: New properties describing the quest, used in the GUI (#838).
 * Quest properties: the title_bar property no longer exists, use title instead.
 * Maps: New properties min_layer and max_layer (#445).
