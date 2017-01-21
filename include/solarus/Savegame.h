@@ -77,6 +77,7 @@ class SOLARUS_API Savegame: public ExportableToLua {
     static const std::string KEY_ABILITY_SHIELD;
     static const std::string KEY_ABILITY_LIFT;
     static const std::string KEY_ABILITY_SWIM;
+    static const std::string KEY_ABILITY_JUMP_OVER_WATER;
     static const std::string KEY_ABILITY_RUN;
     static const std::string KEY_ABILITY_DETECT_WEAK_WALLS;
     static const std::string KEY_ABILITY_GET_BACK_FROM_DEATH;
@@ -92,7 +93,7 @@ class SOLARUS_API Savegame: public ExportableToLua {
 
     // data
     bool is_string(const std::string& key) const;
-    const std::string& get_string(const std::string& key) const;
+    std::string get_string(const std::string& key) const;
     void set_string(const std::string& key, const std::string& value);
     bool is_integer(const std::string& key) const;
     int get_integer(const std::string& key) const;

@@ -98,6 +98,8 @@ file(
   include/solarus/hero/VictoryState.h
 
   include/solarus/lowlevel/apple/AppleInterface.h
+  include/solarus/lowlevel/BlendMode.h
+  include/solarus/lowlevel/BlendModeInfo.h
   include/solarus/lowlevel/Color.h
   include/solarus/lowlevel/Debug.h
   include/solarus/lowlevel/FontResource.h
@@ -109,6 +111,7 @@ file(
   include/solarus/lowlevel/ItDecoder.h
   include/solarus/lowlevel/Logger.h
   include/solarus/lowlevel/Music.h
+  include/solarus/lowlevel/OggDecoder.h
   include/solarus/lowlevel/PixelBits.h
   include/solarus/lowlevel/PixelFilter.h
   include/solarus/lowlevel/Point.h
@@ -297,6 +300,7 @@ file(
   src/hero/UsingItemState.cpp
   src/hero/VictoryState.cpp
 
+  src/lowlevel/BlendModeInfo.cpp
   src/lowlevel/Color.cpp
   src/lowlevel/Debug.cpp
   src/lowlevel/FontResource.cpp
@@ -308,6 +312,7 @@ file(
   src/lowlevel/ItDecoder.cpp
   src/lowlevel/Logger.cpp
   src/lowlevel/Music.cpp
+  src/lowlevel/OggDecoder.cpp
   src/lowlevel/PixelBits.cpp
   src/lowlevel/PixelFilter.cpp
   src/lowlevel/Point.cpp
@@ -442,6 +447,7 @@ target_link_libraries(solarus
   "${LUA_LIBRARY}"
   "${DL_LIBRARY}"
   "${PHYSFS_LIBRARY}"
+  "${VORBIS_LIBRARY}"
   "${VORBISFILE_LIBRARY}"
   "${OGG_LIBRARY}"
   "${MODPLUG_LIBRARY}"

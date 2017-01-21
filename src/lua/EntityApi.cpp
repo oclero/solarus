@@ -110,6 +110,8 @@ void LuaContext::register_entity_module() {
       { "get_position", entity_api_get_position },\
       { "set_position", entity_api_set_position },\
       { "get_center_position", entity_api_get_center_position },\
+      { "get_facing_position", entity_api_get_facing_position },\
+      { "get_facing_entity", entity_api_get_facing_entity },\
       { "get_ground_position", entity_api_get_ground_position },\
       { "get_ground_below", entity_api_get_ground_below },\
       { "get_bounding_box", entity_api_get_bounding_box },\
@@ -246,6 +248,21 @@ void LuaContext::register_entity_module() {
       get_entity_internal_type_name(EntityType::TELETRANSPORTER),
       nullptr,
       teletransporter_methods,
+      metamethods
+  );
+
+  // NPC.
+  static const luaL_Reg npc_methods[] = {
+      ENTITY_COMMON_METHODS,
+      { "is_traversable", npc_api_is_traversable },
+      { "set_traversable", npc_api_set_traversable },
+      { nullptr, nullptr }
+  };
+
+  register_type(
+      get_entity_internal_type_name(EntityType::NPC),
+      nullptr,
+      npc_methods,
       metamethods
   );
 
@@ -516,7 +533,6 @@ void LuaContext::register_entity_module() {
   register_type(get_entity_internal_type_name(EntityType::TILE), nullptr, entity_common_methods, metamethods);
   register_type(get_entity_internal_type_name(EntityType::CARRIED_OBJECT), nullptr, entity_common_methods, metamethods);
   register_type(get_entity_internal_type_name(EntityType::JUMPER), nullptr, entity_common_methods, metamethods);
-  register_type(get_entity_internal_type_name(EntityType::NPC), nullptr, entity_common_methods, metamethods);
   register_type(get_entity_internal_type_name(EntityType::SENSOR), nullptr, entity_common_methods, metamethods);
   register_type(get_entity_internal_type_name(EntityType::SEPARATOR), nullptr, entity_common_methods, metamethods);
   register_type(get_entity_internal_type_name(EntityType::WALL), nullptr, entity_common_methods, metamethods);
@@ -868,7 +884,7 @@ int LuaContext::entity_api_get_size(lua_State* l) {
 }
 
 /**
- * \brief Implementation of enemy:set_size().
+ * \brief Implementation of entity:set_size().
  * \param l The Lua context that is calling this function.
  * \return Number of values to return to Lua.
  */
@@ -891,6 +907,7 @@ int LuaContext::entity_api_set_size(lua_State* l) {
     }
 
     entity.set_size(width, height);
+    entity.notify_position_changed();
 
     return 0;
   });
@@ -927,6 +944,7 @@ int LuaContext::entity_api_set_origin(lua_State* l) {
     int y = LuaTools::check_int(l, 3);
 
     entity.set_origin(x, y);
+    entity.notify_position_changed();
 
     return 0;
   });
@@ -986,6 +1004,45 @@ int LuaContext::entity_api_get_center_position(lua_State* l) {
     lua_pushinteger(l, center_point.y);
     lua_pushinteger(l, entity.get_layer());
     return 3;
+  });
+}
+
+/**
+ * \brief Implementation of entity:get_facing_position().
+ * \param l The Lua context that is calling this function.
+ * \return Number of values to return to Lua.
+ */
+int LuaContext::entity_api_get_facing_position(lua_State* l) {
+
+  return LuaTools::exception_boundary_handle(l, [&] {
+    const Entity& entity = *check_entity(l, 1);
+
+    const Point& facing_point = entity.get_facing_point();
+    lua_pushinteger(l, facing_point.x);
+    lua_pushinteger(l, facing_point.y);
+    lua_pushinteger(l, entity.get_layer());
+    return 3;
+  });
+}
+
+/**
+ * \brief Implementation of entity:get_facing_entity().
+ * \param l The Lua context that is calling this function.
+ * \return Number of values to return to Lua.
+ */
+int LuaContext::entity_api_get_facing_entity(lua_State* l) {
+
+  return LuaTools::exception_boundary_handle(l, [&] {
+    Entity& entity = *check_entity(l, 1);
+
+    Entity* facing_entity = entity.get_facing_entity();
+    if (facing_entity == nullptr) {
+      lua_pushnil(l);
+    }
+    else {
+      push_entity(l, *facing_entity);
+    }
+    return 1;
   });
 }
 
@@ -1737,20 +1794,36 @@ int LuaContext::hero_api_save_solid_ground(lua_State* l) {
 
   return LuaTools::exception_boundary_handle(l, [&] {
     Hero& hero = *check_hero(l, 1);
-    int x, y;
-    int layer;
-    if (lua_gettop(l) >= 2) {
-      x = LuaTools::check_int(l, 2);
-      y = LuaTools::check_int(l, 3);
-      layer = LuaTools::check_layer(l, 4, hero.get_map());
+
+    ScopedLuaRef callback;
+    if (lua_gettop(l) == 2) {
+      // Function parameter.
+      if (lua_isnil(l, 2)) {
+        hero.reset_target_solid_ground_callback();
+        return 0;
+      }
+      else {
+        callback = LuaTools::check_function(l, 2);
+      }
     }
     else {
-      x = hero.get_x();
-      y = hero.get_y();
-      layer = hero.get_layer();
+      // Coordinates and layer.
+      int x = 0;
+      int y = 0;
+      int layer = 0;
+      if (lua_gettop(l) >= 2) {
+        x = LuaTools::check_int(l, 2);
+        y = LuaTools::check_int(l, 3);
+        layer = LuaTools::check_layer(l, 4, hero.get_map());
+      }
+      else {
+        x = hero.get_x();
+        y = hero.get_y();
+        layer = hero.get_layer();
+      }
+      callback = hero.make_solid_ground_callback(Point(x, y), layer);
     }
-
-    hero.set_target_solid_ground_coords(Point(x, y), layer);
+    hero.set_target_solid_ground_callback(callback);
 
     return 0;
   });
@@ -1766,7 +1839,7 @@ int LuaContext::hero_api_reset_solid_ground(lua_State* l) {
   return LuaTools::exception_boundary_handle(l, [&] {
     Hero& hero = *check_hero(l, 1);
 
-    hero.reset_target_solid_ground_coords();
+    hero.reset_target_solid_ground_callback();
 
     return 0;
   });
@@ -1782,28 +1855,43 @@ int LuaContext::hero_api_get_solid_ground_position(lua_State* l) {
   return LuaTools::exception_boundary_handle(l, [&] {
     const Hero& hero = *check_hero(l, 1);
 
-    const Point& target_coords = hero.get_target_solid_ground_coords();
-    if (target_coords.x != -1) {
+    Point xy;
+    int layer = 0;
+
+    const ScopedLuaRef& solid_ground_callback = hero.get_target_solid_ground_callback();
+    if (!solid_ground_callback.is_empty()) {
       // Coordinates memorized by hero:save_solid_ground().
-      lua_pushinteger(l, target_coords.x);
-      lua_pushinteger(l, target_coords.y);
-      lua_pushinteger(l, hero.get_target_solid_ground_layer());
-      return 3;
+      solid_ground_callback.push();
+      bool success = LuaTools::call_function(l, 0, 3, "Solid ground callback");
+      if (!success) {
+        // Fallback: use the last solid ground position.
+        xy = hero.get_last_solid_ground_coords();
+        layer = hero.get_last_solid_ground_layer();
+        lua_pushinteger(l, xy.x);
+        lua_pushinteger(l, xy.y);
+        lua_pushinteger(l, layer);
+        return 3;
+      }
+      else {
+        // Normal case: use the result of the function.
+        return 3;
+      }
     }
-
-    const Point& last_coords = hero.get_last_solid_ground_coords();
-    if (last_coords.x != -1) {
+    else if (hero.get_last_solid_ground_coords().x != -1) {
+      xy = hero.get_last_solid_ground_coords();
+      layer = hero.get_last_solid_ground_layer();
       // Last solid ground coordinates.
-      lua_pushinteger(l, last_coords.x);
-      lua_pushinteger(l, last_coords.y);
-      lua_pushinteger(l, hero.get_last_solid_ground_layer());
+      lua_pushinteger(l, xy.x);
+      lua_pushinteger(l, xy.y);
+      lua_pushinteger(l, layer);
       return 3;
     }
-
-    // No solid ground coordinates.
-    // Maybe the map started in water.
-    lua_pushnil(l);
-    return 1;
+    else {
+      // No solid ground coordinates.
+      // Maybe the map started in water.
+      lua_pushnil(l);
+      return 1;
+    }
   });
 }
 
@@ -2084,7 +2172,7 @@ int LuaContext::hero_api_unfreeze(lua_State* l) {
   return LuaTools::exception_boundary_handle(l, [&] {
     Hero& hero = *check_hero(l, 1);
 
-    hero.start_free();
+    hero.start_state_from_ground();
 
     return 0;
   });
@@ -2138,6 +2226,10 @@ int LuaContext::hero_api_start_item(lua_State* l) {
     Hero& hero = *check_hero(l, 1);
     EquipmentItem& item = *check_item(l, 2);
 
+    if (!item.is_saved()) {
+      LuaTools::arg_error(l, 2,
+          std::string("Cannot use item '" + item.get_name() + "': this item is not saved"));
+    }
     if (hero.can_start_item(item)) {
       hero.start_item(item);
     }
@@ -2851,6 +2943,39 @@ std::shared_ptr<Npc> LuaContext::check_npc(lua_State* l, int index) {
  */
 void LuaContext::push_npc(lua_State* l, Npc& npc) {
   push_userdata(l, npc);
+}
+
+/**
+ * \brief Implementation of npc:is_traversable().
+ * \param l The Lua context that is calling this function.
+ * \return Number of values to return to Lua.
+ */
+int LuaContext::npc_api_is_traversable(lua_State* l) {
+
+  return LuaTools::exception_boundary_handle(l, [&] {
+    const Npc& npc = *check_npc(l, 1);
+
+    lua_pushboolean(l, npc.is_traversable());
+    return 1;
+  });
+}
+
+/**
+ * \brief Implementation of npc:set_traversable().
+ * \param l The Lua context that is calling this function.
+ * \return Number of values to return to Lua.
+ */
+int LuaContext::npc_api_set_traversable(lua_State* l) {
+
+  return LuaTools::exception_boundary_handle(l, [&] {
+    Npc& npc = *check_npc(l, 1);
+
+    bool traversable = LuaTools::opt_boolean(l, 2, true);
+
+    npc.set_traversable(traversable);
+
+    return 0;
+  });
 }
 
 /**
@@ -5673,6 +5798,25 @@ void LuaContext::entity_on_obstacle_reached(
 
   push_entity(l, entity);
   on_obstacle_reached(movement);
+  lua_pop(l, 1);
+}
+
+/**
+ * \brief Calls the on_movement_started() method of a Lua map entity.
+ *
+ * Does nothing if the method is not defined.
+ *
+ * \param entity A map entity.
+ */
+  void LuaContext::entity_on_movement_started(
+      Entity& entity, Movement& movement) {
+
+  if (!userdata_has_field(entity, "on_movement_started")) {
+    return;
+  }
+
+  push_entity(l, entity);
+  on_movement_started(movement);
   lua_pop(l, 1);
 }
 

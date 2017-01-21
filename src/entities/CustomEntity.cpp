@@ -17,11 +17,11 @@
 #include "solarus/entities/CustomEntity.h"
 #include "solarus/entities/Block.h"
 #include "solarus/entities/Bomb.h"
-#include "solarus/entities/Stream.h"
 #include "solarus/entities/Chest.h"
 #include "solarus/entities/Crystal.h"
 #include "solarus/entities/CrystalBlock.h"
 #include "solarus/entities/Destructible.h"
+#include "solarus/entities/Door.h"
 #include "solarus/entities/Enemy.h"
 #include "solarus/entities/Entities.h"
 #include "solarus/entities/Fire.h"
@@ -31,6 +31,7 @@
 #include "solarus/entities/Sensor.h"
 #include "solarus/entities/Separator.h"
 #include "solarus/entities/Stairs.h"
+#include "solarus/entities/Stream.h"
 #include "solarus/entities/Switch.h"
 #include "solarus/entities/Teletransporter.h"
 #include "solarus/lua/LuaContext.h"
@@ -67,11 +68,16 @@ CustomEntity::CustomEntity(
   ground_observer(false),
   modified_ground(Ground::EMPTY) {
 
-  set_collision_modes(CollisionMode::COLLISION_FACING);
+  set_collision_modes(
+      CollisionMode::COLLISION_FACING |
+      CollisionMode::COLLISION_CUSTOM |
+      CollisionMode::COLLISION_SPRITE
+  );
   set_origin(8, 13);
 
   if (!sprite_name.empty()) {
     create_sprite(sprite_name);
+    enable_pixel_collisions();
   }
   set_sprites_direction(direction);
 }
@@ -534,6 +540,22 @@ bool CustomEntity::is_npc_obstacle(Npc& npc) {
 }
 
 /**
+ * \copydoc Entity::is_door_obstacle
+ */
+bool CustomEntity::is_door_obstacle(Door& door) {
+
+  if (door.is_open()) {
+    return false;
+  }
+
+  const TraversableInfo& info = get_can_traverse_entity_info(door.get_type());
+  if (!info.is_empty()) {
+    return !info.is_traversable(*this, door);
+  }
+  return Entity::is_door_obstacle(door);
+}
+
+/**
  * \copydoc Entity::is_enemy_obstacle
  */
 bool CustomEntity::is_enemy_obstacle(Enemy& enemy) {
@@ -751,13 +773,6 @@ void CustomEntity::add_collision_test(
 ) {
   Debug::check_assertion(collision_test != COLLISION_NONE, "Invalid collision mode");
   Debug::check_assertion(!callback_ref.is_empty(), "Missing collision callback");
-
-  if (collision_test == COLLISION_SPRITE) {
-    add_collision_mode(COLLISION_SPRITE);
-  }
-  else {
-    add_collision_mode(COLLISION_CUSTOM);
-  }
 
   collision_tests.emplace_back(
       *get_lua_context(),

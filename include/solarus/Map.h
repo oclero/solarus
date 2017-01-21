@@ -164,6 +164,7 @@ class SOLARUS_API Map: public ExportableToLua {
     void check_collision_with_detectors(Entity& entity);
     void check_collision_with_detectors(Entity& entity, Sprite& sprite);
     void check_collision_from_detector(Entity& detector);
+    void check_collision_from_detector(Entity& detector, Sprite& detector_sprite);
 
     // main loop
     bool notify_input(const InputEvent& event);
@@ -171,9 +172,9 @@ class SOLARUS_API Map: public ExportableToLua {
     bool is_suspended() const;
     void check_suspended();
     void draw();
-    void draw_sprite(Sprite& sprite, const Point& xy);
-    void draw_sprite(Sprite& sprite, int x, int y);
-    void draw_sprite(Sprite& sprite, int x, int y,
+    void draw_visual(Drawable& drawable, const Point& xy);
+    void draw_visual(Drawable& drawable, int x, int y);
+    void draw_visual(Drawable& drawable, int x, int y,
         const Rectangle& clipping_area);
 
   private:

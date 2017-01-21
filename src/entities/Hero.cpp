@@ -23,6 +23,7 @@
 #include "solarus/entities/Destructible.h"
 #include "solarus/entities/Enemy.h"
 #include "solarus/entities/Entities.h"
+#include "solarus/entities/GroundInfo.h"
 #include "solarus/entities/Hero.h"
 #include "solarus/entities/Jumper.h"
 #include "solarus/entities/Sensor.h"
@@ -55,8 +56,9 @@
 #include "solarus/hero/VictoryState.h"
 #include "solarus/lowlevel/Debug.h"
 #include "solarus/lowlevel/Sound.h"
-#include "solarus/lua/LuaContext.h"
 #include "solarus/lowlevel/System.h"
+#include "solarus/lua/LuaContext.h"
+#include "solarus/lua/LuaTools.h"
 #include "solarus/movements/StraightMovement.h"
 #include "solarus/CommandsEffects.h"
 #include "solarus/Equipment.h"
@@ -64,10 +66,32 @@
 #include "solarus/Game.h"
 #include "solarus/Map.h"
 #include "solarus/Sprite.h"
+#include <lua.hpp>
 #include <algorithm>
 #include <utility>
 
 namespace Solarus {
+
+namespace {
+
+/**
+ * \brief Implementation of the callback used to return solid ground coordinates.
+ * \param l A Lua state.
+ * \return Number of values to return to Lua.
+ */
+int l_solid_ground_callback(lua_State* l) {
+
+  int x = LuaTools::check_int(l, lua_upvalueindex(1));
+  int y = LuaTools::check_int(l, lua_upvalueindex(2));
+  int layer = LuaTools::check_int(l, lua_upvalueindex(3));
+
+  lua_pushinteger(l, x);
+  lua_pushinteger(l, y);
+  lua_pushinteger(l, layer);
+  return 3;
+}
+
+}
 
 /**
  * \brief Creates a hero.
@@ -81,7 +105,9 @@ Hero::Hero(Equipment& equipment):
   walking_speed(normal_walking_speed),
   delayed_teletransporter(nullptr),
   on_raised_blocks(false),
-  target_solid_ground_layer(0),
+  last_solid_ground_coords(0, 0),
+  last_solid_ground_layer(0),
+  target_solid_ground_callback(),
   next_ground_date(0),
   next_ice_date(0),
   ice_movement_direction8(0) {
@@ -361,7 +387,8 @@ void Hero::apply_additional_ground_movement() {
  */
 void Hero::check_gameover() {
 
-  if (get_equipment().get_life() <= 0 && get_state().can_start_gameover_sequence()) {
+  if (get_equipment().get_life() <= 0 &&
+      get_state().can_start_gameover_sequence()) {
     sprites->stop_blinking();
     get_game().start_game_over();
   }
@@ -527,7 +554,7 @@ void Hero::place_on_map(Map& map) {
 
   last_solid_ground_coords = { -1, -1 };
   last_solid_ground_layer = 0;
-  reset_target_solid_ground_coords();
+  reset_target_solid_ground_callback();
   get_hero_sprites().set_clipping_rectangle();
 
   get_state().set_map(map);
@@ -711,6 +738,8 @@ void Hero::notify_map_opening_transition_finished() {
 
 /**
  * \copydoc Entity::get_facing_point
+ *
+ * TODO remove this override
  */
 Point Hero::get_facing_point() const {
 
@@ -1095,7 +1124,7 @@ void Hero::check_position() {
     int y = get_top_left_y();
     int layer = get_layer();
 
-    if (layer > 0
+    if (layer > get_map().get_min_layer()
         && get_map().get_ground(layer, x, y, this) == Ground::EMPTY
         && get_map().get_ground(layer, x + 15, y, this) == Ground::EMPTY
         && get_map().get_ground(layer, x, y + 15, this) == Ground::EMPTY
@@ -1311,50 +1340,68 @@ int Hero::get_last_solid_ground_layer() const {
 }
 
 /**
- * \brief Returns the point memorized by the last call to
- * set_target_solid_ground().
- * \return The solid ground coordinates, or
- * <tt>-1,-1</tt> if set_target_solid_ground() was not called.
+ * \brief Returns the function indicated by the last call to
+ * set_target_solid_callback().
+ * \return The Lua function that gives solid ground coordinates, or
+ * an empty ref if set_target_solid_callback() was not called.
  */
-const Point& Hero::get_target_solid_ground_coords() const {
-  return target_solid_ground_coords;
+const ScopedLuaRef& Hero::get_target_solid_ground_callback() const {
+  return target_solid_ground_callback;
 }
 
 /**
- * \brief Returns the layer memorized by the last call to
- * set_target_solid_ground().
- * \return The solid ground layer, or
- * 0 if set_target_solid_ground() was not called.
+ * \brief Creates a Lua function that returns the given coordinates and layer.
+ *
+ * This function can be used as callback for specifying the solid ground position.
+ *
+ * \param xy Coordinates the function should return.
+ * \param layer Layer the function should return.
+ * \return Lua ref to a function that returns this solid position.
  */
-int Hero::get_target_solid_ground_layer() const {
-  return target_solid_ground_layer;
+ScopedLuaRef Hero::make_solid_ground_callback(
+    const Point& xy, int layer) const {
+
+  LuaContext* lua_context = get_lua_context();
+  if (lua_context == nullptr) {
+    return ScopedLuaRef();
+  }
+  lua_State* l = lua_context->get_internal_state();
+
+  lua_pushinteger(l, xy.x);
+  lua_pushinteger(l, xy.y);
+  lua_pushinteger(l, layer);
+  lua_pushcclosure(l, l_solid_ground_callback, 3);
+
+  ScopedLuaRef callback_ref = LuaTools::create_ref(l, -1);
+  lua_pop(l, 1);
+  return callback_ref;
 }
 
 /**
- * \brief Specifies a point of the map where the hero will go back if he falls
- * into a hole or some other bad ground.
- * \param target_solid_ground_coords coordinates of the position where
- * the hero will go if he falls into a hole or some other bad ground
- * \param layer the layer
- */
-void Hero::set_target_solid_ground_coords(
-    const Point& target_solid_ground_coords, int layer) {
-
-  this->target_solid_ground_coords = target_solid_ground_coords;
-  this->target_solid_ground_layer = layer;
-}
-
-/**
- * \brief Forgets the point of the map where the hero was supposed to go back
+ * \brief Specifies a function indicating where the hero will go back
  * if he falls into a hole or some other bad ground.
+ * \param target_solid_ground_callback A Lua function that gives the
+ * coordinates and layer of where the hero should go if he falls into
+ * a hole or some other bad ground.
+ * An empty ref means returning automatically to the last solid ground
+ * position.
+ */
+void Hero::set_target_solid_ground_callback(
+    const ScopedLuaRef& target_solid_ground_callback) {
+
+  this->target_solid_ground_callback = target_solid_ground_callback;
+}
+
+/**
+ * \brief Forgets the function indicating where the hero was supposed to go
+ * back if he falls into a hole or some other bad ground.
  *
  * The hero will now get back to the last solid ground instead of going back
- * to a memorized position.
+ * to a custom position.
  */
-void Hero::reset_target_solid_ground_coords() {
+void Hero::reset_target_solid_ground_callback() {
 
-  this->target_solid_ground_coords = { -1, -1 };
-  this->target_solid_ground_layer = 0;
+  set_target_solid_ground_callback(ScopedLuaRef());
 }
 
 /**
@@ -2130,21 +2177,28 @@ void Hero::notify_game_over_finished() {
  */
 void Hero::start_deep_water() {
 
+  const bool can_swim = get_equipment().has_ability(Ability::SWIM);
+  const bool can_jump_over_water = get_equipment().has_ability(Ability::JUMP_OVER_WATER);
+
   if (!get_state().is_touching_ground()) {
-    // plunge into the water
+    // Entering water from above the ground
+    // (e.g. after a jump).
     set_state(new PlungingState(*this));
   }
   else {
-    // move to state swimming or jumping
-    if (get_equipment().has_ability(Ability::SWIM)) {
+    // Entering water normally (e.g. by walking).
+    if (can_swim) {
       set_state(new SwimmingState(*this));
     }
-    else {
+    else if (can_jump_over_water) {
       int direction8 = get_wanted_movement_direction8();
       if (direction8 == -1) {
         direction8 = get_animation_direction() * 2;
       }
       start_jumping(direction8, 32, false, true);
+    }
+    else {
+      set_state(new PlungingState(*this));
     }
   }
 }
@@ -2524,6 +2578,11 @@ void Hero::start_sword() {
  */
 bool Hero::can_start_item(EquipmentItem& item) {
 
+  if (!item.is_saved()) {
+    // This item has no possession state, it cannot be used.
+    return false;
+  }
+
   if (!item.is_assignable()) {
     // This item cannot be used explicitly.
     return false;
@@ -2586,15 +2645,15 @@ void Hero::start_hookshot() {
 
 /**
  * \brief Makes the hero return to his last solid ground position.
- * \param use_memorized_xy true to get back to the place previously memorized (if any),
+ * \param use_specified_position true to get back to the place previously specified (if any),
  * false to get back to the last coordinates with solid ground
  * \param end_delay a delay to add at the end before returning control to the hero (default 0)
  * \param with_sound true to play a sound when returning to solid ground (default true)
  */
-void Hero::start_back_to_solid_ground(bool use_memorized_xy,
+void Hero::start_back_to_solid_ground(bool use_specified_position,
     uint32_t end_delay, bool with_sound) {
 
-  set_state(new BackToSolidGroundState(*this, use_memorized_xy, end_delay, with_sound));
+  set_state(new BackToSolidGroundState(*this, use_specified_position, end_delay, with_sound));
 }
 
 /**
@@ -2612,6 +2671,8 @@ void Hero::start_back_to_solid_ground(bool use_memorized_xy,
  * correct next state depending on the ground the hero lands on.
  */
 void Hero::start_state_from_ground() {
+
+  update_ground_below();  // Make sure the ground is up-to-date.
 
   switch (get_ground_below()) {
 

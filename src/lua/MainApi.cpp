@@ -127,7 +127,7 @@ int LuaContext::main_api_load_file(lua_State *l) {
   return LuaTools::exception_boundary_handle(l, [&] {
     const std::string& file_name = LuaTools::check_string(l, 1);
 
-    if (!load_file_if_exists(l, file_name)) {
+    if (!load_file(l, file_name)) {
       lua_pushnil(l);
     }
 
@@ -244,10 +244,13 @@ int LuaContext::main_api_load_settings(lua_State* l) {
       LuaTools::error(l, "Cannot load settings: no write directory was specified in quest.dat");
     }
 
-    Settings settings;
-    bool success = settings.load(file_name);
-    if (success) {
-      settings.apply_to_quest();
+    bool success = false;
+    if (QuestFiles::data_file_exists(file_name)) {
+      Settings settings;
+      success = settings.load(file_name);
+      if (success) {
+        settings.apply_to_quest();
+      }
     }
 
     lua_pushboolean(l, success);

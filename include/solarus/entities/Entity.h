@@ -44,6 +44,7 @@ class CommandsEffects;
 class Crystal;
 class CrystalBlock;
 class Destructible;
+class Door;
 class Enemy;
 class Equipment;
 class EquipmentItem;
@@ -116,6 +117,7 @@ class SOLARUS_API Entity: public ExportableToLua {
     virtual void notify_command_released(GameCommand command);
 
     // adding to a map
+    bool is_initialized() const;
     bool is_on_map() const;
     void set_map(Map& map);
     Map& get_map() const;
@@ -275,8 +277,10 @@ class SOLARUS_API Entity: public ExportableToLua {
     void set_layer_independent_collisions(bool independent);
 
     // Detecting other entities.
-    void check_collision(Entity& entity);
-    void check_collision(Entity& entity, Sprite& sprite);
+    void check_collision(Entity& other);
+    void check_collision(Entity& other, Sprite& other_sprite);
+    void check_collision(Sprite& this_sprite, Entity& other);
+    // TODO void check_collision(Sprite& this_sprite, Entity& other, Sprite& other_sprite);
     bool test_collision(Entity& entity, CollisionMode collision_mode);
     bool test_collision_rectangle(const Entity& entity) const;
     bool test_collision_inside(const Entity& entity) const;
@@ -339,6 +343,7 @@ class SOLARUS_API Entity: public ExportableToLua {
     virtual bool is_raised_block_obstacle(CrystalBlock& raised_block);
     virtual bool is_crystal_obstacle(Crystal& crystal);
     virtual bool is_npc_obstacle(Npc& npc);
+    virtual bool is_door_obstacle(Door& door);
     virtual bool is_enemy_obstacle(Enemy& enemy);
     virtual bool is_jumper_obstacle(Jumper& jumper, const Rectangle& candidate_position);
     virtual bool is_destructible_obstacle(Destructible& destructible);

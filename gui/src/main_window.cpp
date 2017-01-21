@@ -42,7 +42,7 @@ MainWindow::MainWindow(QWidget* parent) :
   // Icon.
   QStringList icon_sizes = { "16", "24", "32", "48", "64", "128", "256" };
   QIcon icon;
-  Q_FOREACH (const QString size, icon_sizes) {
+  Q_FOREACH (const QString& size, icon_sizes) {
     icon.addPixmap(":/images/icon/solarus_launcher_icon_" + size + ".png");
   }
   setWindowIcon(icon);
@@ -79,6 +79,8 @@ MainWindow::MainWindow(QWidget* parent) :
   connect(ui.quests_view->selectionModel(), SIGNAL(selectionChanged(QItemSelection, QItemSelection)),
           this, SLOT(selected_quest_changed()));
   connect(ui.play_button, SIGNAL(clicked()),
+          this, SLOT(on_action_play_quest_triggered()));
+  connect(ui.quests_view, SIGNAL(activated(QModelIndex)),
           this, SLOT(on_action_play_quest_triggered()));
   connect(&quest_runner, SIGNAL(running()),
           this, SLOT(update_run_quest()));

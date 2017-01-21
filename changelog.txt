@@ -1,7 +1,46 @@
-_______________________________
+___________________________
 
-Solarus 1.5.0 (in progress)
-_______________________________
+Solarus 1.6.0 (in progress)
+___________________________
+
+* Fix text_surface:set_horizontal/vertical_alignment() not working.
+
+__________________________
+
+Solarus 1.5.1 (2016-11-29)
+__________________________
+
+Engine changes
+--------------
+
+* Add Spanish translation of the launcher GUI (thanks Diarandor!).
+* Fix registering quest to the launcher at quest install time (#948).
+* Fix crash when a carried bomb explodes (#953).
+* Fix crash when a scrolling teletransporter is incorrectly placed (#977).
+* Fix crash when an entity has a wrong savegame variable type (#1008).
+* Fix memory leak when creating lots of surfaces (#962).
+* Fix cleanup of the quest files at exit.
+* Fix error in sol.main.load_settings() when the file does not exist.
+* Fix ground ignored after hero:unfreeze() or back to solid ground (#827).
+* Fix entity:get_name() returning nil after the entity is removed (#954).
+* Improve error messages of surface creations and conversions.
+* Chests: set an initial value "entities/chest" to the sprite field.
+
+
+Solarus launcher GUI changes
+----------------------------
+
+* Start the selected quest by pressing Return or double-clicking (#949).
+
+Sample quest changes
+--------------------
+
+* The sample quest is now in a separate repository (#996).
+
+__________________________
+
+Solarus 1.5.0 (2016-07-27)
+__________________________
 
 Engine changes
 --------------
@@ -16,30 +55,42 @@ Engine changes
 * Print when the main loop starts and stops.
 * Print the Lua version at startup (#692).
 * Outputs are now prefixed by [Solarus] and the current simulated time.
+* Musics: Add support of custom OGG looping (#643).
 * Maps: allow more than 3 layers (#445).
 * Improve the performance of loading big maps (#854).
 * Improve the performance of custom entity collisions.
 * Improve the performance of collisions by using a quadtree.
 * Entities far from the camera are no longer suspended.
+* The hero no longer automatically jumps when arriving on water (#530).
 * Destinations can now set to update or not the starting location (#819).
+* Teletransporters on the side of the map now work on all layers (#850).
+* Streams can now have a speed of zero (#496).
 * Fix crash when main.lua has a syntax error.
 * Fix crash with missing directions in sprites controlled by the engine (#864).
 * Fix sprite:on_animation_finished() and others not working sometimes (#799).
+* Fix error in sprite:set_animation() when the direction is missing (#937).
 * Fix straight movement precision.
 * Fix freeze when loading a map with tiles outside the limits (#875).
+* Fix crash when trying to use a non-saved item (#889).
 * Fix sword tapping sound still played when the game is suspended (#797).
 * Fix hero:set_invincible() not working without duration (#805).
 * Fix lifted item walking animation only accepting 3 frames (#645).
 * Fix enemy:set_attack_consequence_sprite() with thrown items (#834).
+* Fix custom_entity:set_can_traverse() for doors (#716).
 * Fix custom_entity:set_can_traverse_ground() for some grounds (#794).
-* Fix custom entity collisions missed for entities that do not move (#671).
+* Fix custom entity collisions missed for entities that do not move (#671, #883).
 * Fix custom_entity:get_modified_ground() returning nothing.
 * Fix custom_entity:on_ground_below_changed() not called (#738).
+* Fix missing notifications in custom_entity:set_origin() (#880).
 * Fix creating an entity with the same name as another one just removed (#795).
 * Fix parallax scrolling for dynamic tiles (#816).
 * Fix crash when a diagonal tile is not square (#837).
 * Fix crash when the teletransporter after stairs is missing.
+* Fix non-blocking stream turns after going south (#648).
 * Fix text_surface:set_rendering_mode() not working (#833).
+* Fix possible freeze when changing the position of a path finding entity.
+* Fix circle_movement:set_initial_angle() not working (#721).
+* Fix straight movement setting speed to zero when reaching obstacles (#633).
 * Fix support of joypads with multiple axes.
 * Fix sol.input.get_mouse_coordinates() ignoring the zoom factor (#734).
 
@@ -48,15 +99,21 @@ Lua API changes
 
 Changes that introduce incompatibilities:
 
+* Fix missing collision detections and entity notifications.
 * chest:on_empty() is replaced by chest:on_opened(treasure) (#483).
-* Enemy ranks no longer exists, set_hurt_style() needs to be called (#449).
+* Enemy ranks no longer exist, set_hurt_style() needs to be called (#449).
 * Items with amount now have a default max amount of 1000 (#688).
+* New ability "jump_over_water" in game:get/set_ability(), off by default (#530).
 * Fix hero state name "freezed", renamed it to "frozen" (#813).
 * Fix map:get_entities() not returning the hero (#670).
-* map:get_camera_position() is now deprecated, use camera:get_position().
+* Fix map:create_custom_entity() not erroring when width/height are missing.
+* map:get_camera_position() is now deprecated, use camera:get_bounding_box().
 * map:move_camera() is now deprecated, use a camera movement instead.
+* map:draw_sprite() is now deprecated, use map:draw_visual() instead (#661).
 * Fix entity:set_enabled(true) delayed while it blocks the hero (#817).
 * Fix brandished treasure sprite and shop treasure sprite not animated (#790).
+* circle_movement:get/set_initial_angle() now use degrees (#721).
+* Add ability to hide mouse cursor (#891).
 
 Changes that do not introduce incompatibilities:
 
@@ -67,14 +124,16 @@ Changes that do not introduce incompatibilities:
 * Add methods map:get_min_layer() and map:get_max_layer() (#445).
 * Add a method map:get_entities_by_type() (#796).
 * Add a method map:get_entities_in_rectangle() (#142).
+* Add a method map:draw_visual() to draw any drawable object (#661).
 * Add a method map:get_camera() (the camera is now a map entity).
-* map:get_camera_position() is now deprecated, use camera:get_position().
-* map:move_camera() is now deprecated, use a camera movement instead.
 * Add methods map:set_world() and map:set_floor() (#656).
 * map:get_entities() can now be called without parameter to get all entities.
 * map:get_entities*() functions now give entities sorted in Z order (#779).
+* Add an event entity:on_movement_started().
 * Add a method entity:get_max_bounding_box() considering sprite boxes (#754).
 * entity:get_center_position() now also returns the layer.
+* Add a method entity:get_facing_position().
+* Add a method entity:get_facing_entity() (#877).
 * Add a method entity:get_ground_position() (#830).
 * Add a method entity:get_ground_below() (#830).
 * entity:set_optimization_distance() is now only a hint for the engine.
@@ -84,7 +143,9 @@ Changes that do not introduce incompatibilities:
 * Add a method entity:get_sprites() (#851).
 * Add methods entity:bring_sprite_to_front/back() (#809).
 * enemy/custom_entity:create_sprite() now take an optional name value.
+* hero:save_solid_ground() can now take a function parameter (#667).
 * Add a method hero:start_attack() (#821).
+* Add methods npc:is/set_traversable() (#712).
 * Add methods chest:get/set_treasure() (#664).
 * Add an event chest:on_opened() with treasure info parameters (#483).
 * Add methods dynamic_tile:get_pattern_id() and get_modified_ground() (#755).
@@ -95,6 +156,7 @@ Changes that do not introduce incompatibilities:
 * Add methods sprite:get_size() and sprite:get_origin() (#823).
 * sprite:set_animation() now takes an optional callback parameter (#861).
 * Add a method surface:get_opacity() (#722).
+* Add methods surface/text_surface/sprite:get/set_blending_mode (#930).
 
 Data files format changes
 -------------------------
@@ -105,6 +167,7 @@ Data files format changes
 * Maps: New properties min_layer and max_layer (#445).
 * Maps: Enemies no longer have a rank property (#449).
 * Maps: New property starting_location_mode on destinations (#819).
+* Maps: width and height of custom entities are now mandatory as documented.
 * Dialogs: Allow empty texts.
 
 Sample quest changes

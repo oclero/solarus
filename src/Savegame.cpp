@@ -65,6 +65,8 @@ const std::string Savegame::KEY_ABILITY_SWORD_KNOWLEDGE =
 const std::string Savegame::KEY_ABILITY_SHIELD = "_ability_shield";    /**< Protection level. */
 const std::string Savegame::KEY_ABILITY_LIFT = "_ability_lift";        /**< Lift level. */
 const std::string Savegame::KEY_ABILITY_SWIM = "_ability_swim";        /**< Swim level. */
+const std::string Savegame::KEY_ABILITY_JUMP_OVER_WATER =
+    "_ability_jump_over_water";                                        /**< Jump over water level. */
 const std::string Savegame::KEY_ABILITY_RUN = "_ability_run";          /**< Run level. */
 const std::string Savegame::KEY_ABILITY_DETECT_WEAK_WALLS =
     "_ability_detect_weak_walls";                                      /**< Weak walls detection level. */
@@ -399,21 +401,23 @@ bool Savegame::is_string(const std::string& key) const {
  * \param key Name of the value to get.
  * \return The string value associated with this key or an empty string.
  */
-const std::string& Savegame::get_string(const std::string& key) const {
+std::string Savegame::get_string(const std::string& key) const {
 
   SOLARUS_ASSERT(LuaTools::is_valid_lua_identifier(key),
       std::string("Savegame variable '") + key + "' is not a valid key");
 
   const auto& it = saved_values.find(key);
-  if (it != saved_values.end()) {
-    const SavedValue& value = it->second;
-    SOLARUS_ASSERT(value.type == SavedValue::VALUE_STRING,
-        std::string("Value '") + key + "' is not a string");
-    return value.string_data;
+  if (it == saved_values.end()) {
+    return "";
   }
 
-  static const std::string empty_string = "";
-  return empty_string;
+  const SavedValue& value = it->second;
+  if (value.type != SavedValue::VALUE_STRING) {
+    Debug::error(std::string("Value '") + key + "' is not a string");
+    return "";
+  }
+
+  return value.string_data;
 }
 
 /**
@@ -459,15 +463,17 @@ int Savegame::get_integer(const std::string& key) const {
   SOLARUS_ASSERT(LuaTools::is_valid_lua_identifier(key),
       std::string("Savegame variable '") + key + "' is not a valid key");
 
-  int result = 0;
   const auto& it = saved_values.find(key);
-  if (it != saved_values.end()) {
-    const SavedValue& value = it->second;
-    SOLARUS_ASSERT(value.type == SavedValue::VALUE_INTEGER,
-        std::string("Value '") + key + "' is not an integer");
-    result = value.int_data;
+  if (it == saved_values.end()) {
+    return 0;
   }
-  return result;
+
+  const SavedValue& value = it->second;
+  if (value.type != SavedValue::VALUE_INTEGER) {
+    Debug::error(std::string("Value '") + key + "' is not an integer");
+  }
+
+  return value.int_data;
 }
 
 /**
@@ -513,15 +519,17 @@ bool Savegame::get_boolean(const std::string& key) const {
   SOLARUS_ASSERT(LuaTools::is_valid_lua_identifier(key),
       std::string("Savegame variable '") + key + "' is not a valid key");
 
-  bool result = false;
   const auto& it = saved_values.find(key);
-  if (it != saved_values.end()) {
-    const SavedValue& value = it->second;
-    SOLARUS_ASSERT(value.type == SavedValue::VALUE_BOOLEAN,
-        std::string("Value '") + key + "' is not a boolean");
-    result = value.int_data != 0;
+  if (it == saved_values.end()) {
+    return false;
   }
-  return result;
+
+  const SavedValue& value = it->second;
+  if (value.type != SavedValue::VALUE_BOOLEAN) {
+    Debug::error(std::string("Value '") + key + "' is not a boolean");
+    return false;
+  }
+  return value.int_data != 0;
 }
 
 /**

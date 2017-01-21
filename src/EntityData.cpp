@@ -100,7 +100,7 @@ const std::map<EntityType, const EntityTypeDescription> entity_type_descriptions
             { "treasure_name", OptionalFlag::OPTIONAL, FieldValue("") },
             { "treasure_variant", OptionalFlag::OPTIONAL, FieldValue(1) },
             { "treasure_savegame_variable", OptionalFlag::OPTIONAL, FieldValue("") },
-            { "sprite", OptionalFlag::MANDATORY, FieldValue("") },
+            { "sprite", OptionalFlag::MANDATORY, FieldValue("entities/chest") },
             { "opening_method", OptionalFlag::OPTIONAL, FieldValue("interaction") },
             { "opening_condition", OptionalFlag::OPTIONAL, FieldValue("") },
             { "opening_condition_consumed", OptionalFlag::OPTIONAL, FieldValue(false) },
@@ -241,8 +241,8 @@ const std::map<EntityType, const EntityTypeDescription> entity_type_descriptions
 
     {
         EntityType::CUSTOM, {
-            { "width", OptionalFlag::OPTIONAL, FieldValue(16) },
-            { "height", OptionalFlag::OPTIONAL, FieldValue(16) },
+            { "width", OptionalFlag::MANDATORY, FieldValue(16) },
+            { "height", OptionalFlag::MANDATORY, FieldValue(16) },
             { "direction", OptionalFlag::MANDATORY, FieldValue(0) },
             { "sprite", OptionalFlag::OPTIONAL, FieldValue("") },
             { "model", OptionalFlag::OPTIONAL, FieldValue("") },

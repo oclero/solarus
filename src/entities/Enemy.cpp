@@ -40,6 +40,7 @@
 #include "solarus/SpriteAnimationSet.h"
 #include <memory>
 #include <sstream>
+#include <iostream>
 
 namespace Solarus {
 
@@ -508,7 +509,7 @@ void Enemy::set_obstacle_behavior(ObstacleBehavior obstacle_behavior) {
 }
 
 /**
- * \brief Returns whether this enemy is traversable.by other entities.
+ * \brief Returns whether this enemy is traversable by other entities.
  *
  * If the enemy is not traversable, is_obstacle_for() will always return
  * \c false.
@@ -522,7 +523,7 @@ bool Enemy::is_traversable() const {
 }
 
 /**
- * \brief Sets whether this enemy is traversable.by other entities.
+ * \brief Sets whether this enemy is traversable by other entities.
  *
  * If the enemy is not traversable, is_obstacle_for() will always return
  * \c false.
@@ -918,6 +919,20 @@ void Enemy::notify_enabled(bool enabled) {
  */
 void Enemy::notify_ground_below_changed() {
 
+  Entity::notify_ground_below_changed();
+
+  // React to bad ground.
+
+  if (!is_initialized()) {
+    // Still initializing the enemy.
+    // Maybe the obstacle behavior is not even set yet.
+    return;
+  }
+
+  if (is_suspended()) {
+    return;
+  }
+
   if (get_obstacle_behavior() != ObstacleBehavior::NORMAL
       || get_life() <= 0) {
     return;
@@ -1115,8 +1130,8 @@ void Enemy::restart() {
  *
  * The enemy is considered to be in its normal state if
  * it is not disabled, dying, being hurt or immobilized.
- * When this method returns false, the subclasses of Enemy
- * should not change the enemy properties.
+ * When this method returns false, scripts
+ * cannot hurt or immobilized the enemy.
  *
  * \return true if this enemy is in a normal state
  */

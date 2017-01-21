@@ -84,6 +84,8 @@ void LuaContext::register_text_surface_module() {
       { "get_size", text_surface_api_get_size },
       { "draw", drawable_api_draw },
       { "draw_region", drawable_api_draw_region },
+      { "get_blend_mode", drawable_api_get_blend_mode },
+      { "set_blend_mode", drawable_api_set_blend_mode },
       { "fade_in", drawable_api_fade_in },
       { "fade_out", drawable_api_fade_out },
       { "get_xy", drawable_api_get_xy },
@@ -225,7 +227,7 @@ int LuaContext::text_surface_api_set_horizontal_alignment(lua_State* l) {
     TextSurface& text_surface = *check_text_surface(l, 1);
     TextSurface::HorizontalAlignment alignment =
         LuaTools::check_enum<TextSurface::HorizontalAlignment>(
-            l, 1, horizontal_alignment_names);
+            l, 2, horizontal_alignment_names);
 
     text_surface.set_horizontal_alignment(alignment);
 
@@ -261,7 +263,7 @@ int LuaContext::text_surface_api_set_vertical_alignment(lua_State* l) {
     TextSurface& text_surface = *check_text_surface(l, 1);
     TextSurface::VerticalAlignment alignment =
         LuaTools::check_enum<TextSurface::VerticalAlignment>(
-            l, 1, vertical_alignment_names);
+            l, 2, vertical_alignment_names);
 
     text_surface.set_vertical_alignment(alignment);
 

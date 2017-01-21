@@ -1,21 +1,27 @@
 This is Solarus, the open-source A-RPG game engine.
 
-This OSX binary package contains:
-- Solarus: The executable file of the engine. Run it with the path of
-  your quest as argument (the directory containing data/ or data.solarus).
-  Without this argument, the current directory is used as quest path.
-  Try also 'solarus -help' to show information about the command-line
-  options.
-- Solarus Bundle: The package that you'll use to distribute your game 
-  or your new quest on other Mac OSX.
-- Solarus Quest Editor: An editor that helps you create maps and tilesets
-  for your quest. You need Java 7 to run it.
-  See http://www.solarus-games.org/doc/latest/ to know how to create a quest.
+Solarus is licensed under GNU General Public License v3.
 
-To add a quest into the bundle and distribute it, just copy your quest file (data.solarus or data/) into Solarus.app/Contents/Resources
+This OSX package contains:
+- Solarus (Solarus.app): A GUI that allows you to run a Solarus quest and
+  choose your audio and video settings.
+- Solarus-run (Solarus-run.app): An application that directly runs
+  a Solarus quest.
+  Normally opened, it runs the quest (the data/ folder or data.solarus or
+  data.solarus.zip) placed in the same directory than the app.
+  Through the command-line, run Solarus.app/Contents/Resources/solarus-run
+  with the path of your quest as argument (the directory containing data/
+  or data.solarus or data.solarus.zip).
+  Without this argument, the current directory is used as quest path.
+  Try also 'solarus-run -help' to show information about the command-line
+  options.
+- A sample quest. This is a very minimalist example of game with only one map
+  and almost nothing to do, but you can run it or edit it.
+- Solarus Quest Editor (Solarus Quest Editor.app): An editor that helps you
+  create maps and tilesets for your quest.
+  See http://www.solarus-games.org/doc/latest/ to know how to create a quest.
 
 See our website www.solarus-games.org for more information, to get help or to
 download our games or the source code of the engine.
 
 Enjoy!
-

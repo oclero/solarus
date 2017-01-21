@@ -560,40 +560,45 @@ void Map::draw_background(const SurfacePtr& dst_surface) {
 
 /**
  * \brief Builds a surface with black bars when the map is smaller than the
- * quest size.
+ * camera size.
  */
 void Map::build_foreground_surface() {
 
   foreground_surface = nullptr;
 
-  const Size& quest_size = Video::get_quest_size();
-  const int quest_width = quest_size.width;
-  const int quest_height = quest_size.height;
+  const CameraPtr& camera = get_camera();
+  if (camera != nullptr) {
+    return;
+  }
 
-  // If the map is too small for the screen, add black bars outside the map.
+  const Size& camera_size = camera->get_size();
+  const int camera_width = camera_size.width;
+  const int camera_height = camera_size.height;
+
+  // If the map is too small for the camera, add black bars outside the map.
   const int map_width = get_width();
   const int map_height = get_height();
 
-  if (map_width >= quest_width
-      && map_height >= quest_height) {
+  if (map_width >= camera_width
+      && map_height >= camera_height) {
     // Nothing to do.
     return;
   }
 
-  foreground_surface = Surface::create(quest_size);
+  foreground_surface = Surface::create(camera_size);
   // Keep this surface as software destination because it is built only once.
 
-  if (map_width < quest_width) {
-    int bar_width = (quest_width - map_width) / 2;
-    Rectangle dst_position(0, 0, bar_width, quest_height);
+  if (map_width < camera_width) {
+    int bar_width = (camera_width - map_width) / 2;
+    Rectangle dst_position(0, 0, bar_width, camera_height);
     foreground_surface->fill_with_color(Color::black, dst_position);
     dst_position.set_x(bar_width + map_width);
     foreground_surface->fill_with_color(Color::black, dst_position);
   }
 
-  if (map_height < quest_height) {
-    int bar_height = (quest_height - map_height) / 2;
-    Rectangle dst_position(0, 0, quest_width, bar_height);
+  if (map_height < camera_height) {
+    int bar_height = (camera_height - map_height) / 2;
+    Rectangle dst_position(0, 0, camera_width, bar_height);
     foreground_surface->fill_with_color(Color::black, dst_position);
     dst_position.set_y(bar_height + map_height);
     foreground_surface->fill_with_color(Color::black, dst_position);
@@ -612,22 +617,22 @@ void Map::draw_foreground(const SurfacePtr& dst_surface) {
 }
 
 /**
- * \brief Draws a sprite on the map surface.
- * \param sprite the sprite to draw
- * \param xy coordinates of the sprite's origin point in the map
+ * \brief Draws a drawable object on the camera surface.
+ * \param drawable The drawable object to draw.
+ * \param xy Coordinates of the drawable's origin point in the map.
  */
-void Map::draw_sprite(Sprite& sprite, const Point &xy) {
+void Map::draw_visual(Drawable& drawable, const Point &xy) {
 
-  draw_sprite(sprite, xy.x, xy.y);
+  draw_visual(drawable, xy.x, xy.y);
 }
 
 /**
- * \brief Draws a sprite on the map surface.
- * \param sprite the sprite to draw
- * \param x x coordinate of the sprite's origin point in the map
- * \param y y coordinate of the sprite's origin point in the map
+ * \brief Draws a drawable object on the camera surface.
+ * \param drawable The drawable object to draw.
+ * \param x X coordinate of the drawable's origin point in the map.
+ * \param y Y coordinate of the drawable's origin point in the map.
  */
-void Map::draw_sprite(Sprite& sprite, int x, int y) {
+void Map::draw_visual(Drawable& drawable, int x, int y) {
 
   // the position is given in the map coordinate system:
   // convert it to the visible surface coordinate system
@@ -636,26 +641,26 @@ void Map::draw_sprite(Sprite& sprite, int x, int y) {
     return;
   }
   const SurfacePtr& camera_surface = camera->get_surface();
-  sprite.draw(camera_surface,
+  drawable.draw(camera_surface,
       x - camera->get_top_left_x(),
       y - camera->get_top_left_y()
   );
 }
 
 /**
- * \brief Draws a sprite on a restricted area of the map surface.
- * \param sprite The sprite to draw.
- * \param x X coordinate of the sprite's origin point in the map.
- * \param y Y coordinate of the sprite's origin point in the map.
+ * \brief Draws a drawable object on a restricted area of the camera surface.
+ * \param drawable The drawable object to draw.
+ * \param x X coordinate of the drawable's origin point in the map.
+ * \param y Y coordinate of the drawable's origin point in the map.
  * \param clipping_area Rectangle of the map where the drawing will be
  * restricted. A flat rectangle means no restriction.
  */
-void Map::draw_sprite(Sprite& sprite, int x, int y,
+void Map::draw_visual(Drawable& drawable, int x, int y,
     const Rectangle& clipping_area) {
 
   if (clipping_area.is_flat()) {
     // No clipping area.
-    draw_sprite(sprite, x, y);
+    draw_visual(drawable, x, y);
     return;
   }
 
@@ -675,7 +680,7 @@ void Map::draw_sprite(Sprite& sprite, int x, int y,
       x - camera->get_top_left_x(),
       y - camera->get_top_left_y()
   };
-  sprite.draw_region(
+  drawable.draw_region(
       region_in_frame,
       camera_surface,
       dst_position
@@ -1262,7 +1267,8 @@ void Map::check_collision_with_detectors(Entity& entity) {
     return;
   }
 
-  if (entity.is_being_removed()) {
+  if (entity.is_being_removed() ||
+      !entity.is_enabled()) {
     return;
   }
 
@@ -1274,14 +1280,18 @@ void Map::check_collision_with_detectors(Entity& entity) {
   entities->get_entities_in_rectangle(box, entities_nearby);
   for (const EntityPtr& entity_nearby: entities_nearby) {
 
+    if (entity.is_being_removed()) {
+      return;
+    }
+
     if (!entity_nearby->is_detector()) {
       // Most entities are detectors anyway.
       continue;
     }
 
-    if (entity_nearby->is_enabled()
-        && !entity_nearby->is_suspended()
-        && !entity_nearby->is_being_removed()) {
+    if (entity_nearby->is_enabled() &&
+        !entity_nearby->is_suspended() &&
+        !entity_nearby->is_being_removed()) {
       entity_nearby->check_collision(entity);
     }
   }
@@ -1302,7 +1312,8 @@ void Map::check_collision_from_detector(Entity& detector) {
     return;
   }
 
-  if (detector.is_being_removed()) {
+  if (detector.is_being_removed() ||
+      !detector.is_enabled()) {
     return;
   }
 
@@ -1315,12 +1326,63 @@ void Map::check_collision_from_detector(Entity& detector) {
   entities->get_entities_in_rectangle(box, entities_nearby);
   for (const EntityPtr& entity_nearby: entities_nearby) {
 
-    if (entity_nearby->is_enabled()
-        && !entity_nearby->is_suspended()
-        && !entity_nearby->is_being_removed()
-        && entity_nearby.get() != &detector
+    if (detector.is_being_removed()) {
+      return;
+    }
+
+    if (entity_nearby->is_enabled() &&
+        !entity_nearby->is_suspended() &&
+        !entity_nearby->is_being_removed() &&
+        entity_nearby.get() != &detector &&
+        entity_nearby.get() != &get_entities().get_hero()
     ) {
       detector.check_collision(*entity_nearby);
+    }
+  }
+}
+
+/**
+ * \brief Checks pixel-precise collisions between all entities and a
+ * particular sprite of a detector.
+ *
+ * This function is called when a detector wants to check entities,
+ * typically when its sprite has just changed.
+ * If the map is suspended, this function does nothing.
+ *
+ * \param detector A detector.
+ * \param detector_sprite The detector's sprite to check.
+ */
+void Map::check_collision_from_detector(Entity& detector, Sprite& detector_sprite) {
+
+  if (suspended) {
+    return;
+  }
+
+  if (detector.is_being_removed() ||
+      !detector.is_enabled()) {
+    return;
+  }
+
+  // First check the hero.
+  detector.check_collision(detector_sprite, get_entities().get_hero());
+
+  // Check each entity with this detector.
+  Rectangle box = detector.get_max_bounding_box();
+  std::vector<EntityPtr> entities_nearby;
+  entities->get_entities_in_rectangle(box, entities_nearby);
+  for (const EntityPtr& entity_nearby: entities_nearby) {
+
+    if (detector.is_being_removed()) {
+      return;
+    }
+
+    if (entity_nearby->is_enabled() &&
+        !entity_nearby->is_suspended() &&
+        !entity_nearby->is_being_removed() &&
+        entity_nearby.get() != &detector &&
+        entity_nearby.get() != &get_entities().get_hero()
+    ) {
+      detector.check_collision(detector_sprite, *entity_nearby);
     }
   }
 }
@@ -1343,11 +1405,19 @@ void Map::check_collision_with_detectors(Entity& entity, Sprite& sprite) {
     return;
   }
 
+  if (!entity.is_enabled()) {
+    return;
+  }
+
   // Check each detector.
   Rectangle box = entity.get_max_bounding_box();
   std::vector<EntityPtr> entities_nearby;
   entities->get_entities_in_rectangle(box, entities_nearby);
   for (const EntityPtr& entity_nearby: entities_nearby) {
+
+    if (entity.is_being_removed()) {
+      return;
+    }
 
     if (!entity_nearby->is_detector()) {
       continue;

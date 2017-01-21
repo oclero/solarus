@@ -34,16 +34,13 @@
 #include "solarus/DrawablePtr.h"
 #include "solarus/SpritePtr.h"
 #include "solarus/TimerPtr.h"
+#include <lua.hpp>
 #include <list>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
-
-struct lua_State;
-struct luaL_Reg;
-typedef int (*lua_CFunction) (lua_State* l);
 
 namespace Solarus {
 
@@ -182,8 +179,7 @@ class LuaContext {
     static void push_ref(lua_State* l, const ScopedLuaRef& ref);
 
     // Executing Lua code.
-    static void load_file(lua_State* l, const std::string& script_name);
-    static bool load_file_if_exists(lua_State* l, const std::string& script_name);
+    static bool load_file(lua_State* l, const std::string& script_name);
     static void do_file(lua_State* l, const std::string& script_name);
     static bool do_file_if_exists(lua_State* l, const std::string& script_name);
 
@@ -379,6 +375,7 @@ class LuaContext {
     void entity_on_post_draw(Entity& entity);
     void entity_on_position_changed(Entity& entity, const Point& xy, int layer);
     void entity_on_obstacle_reached(Entity& entity, Movement& movement);
+    void entity_on_movement_started(Entity& entity, Movement& movement);
     void entity_on_movement_changed(Entity& entity, Movement& movement);
     void entity_on_movement_finished(Entity& entity);
     bool entity_on_interaction(Entity& entity);
@@ -428,7 +425,7 @@ class LuaContext {
     /**
      * \brief Type of the functions that can be called by Lua.
      */
-    typedef int (FunctionExportedToLua) (lua_State* l);
+    using FunctionExportedToLua = int(lua_State* l);
 
     // All functions named <type>_api_<name> can be called by Lua.
     static FunctionExportedToLua
@@ -478,6 +475,8 @@ class LuaContext {
       video_api_get_modes,
       video_api_is_fullscreen,
       video_api_set_fullscreen,
+      video_api_is_cursor_visible,
+      video_api_set_cursor_visible,
       video_api_get_quest_size,
       video_api_get_window_size,
       video_api_set_window_size,
@@ -532,6 +531,8 @@ class LuaContext {
       // Drawable API (i.e. common to surfaces, text surfaces and sprites).
       drawable_api_draw,
       drawable_api_draw_region,
+      drawable_api_get_blend_mode,
+      drawable_api_set_blend_mode,
       drawable_api_fade_in,
       drawable_api_fade_out,
       drawable_api_get_xy,
@@ -777,7 +778,8 @@ class LuaContext {
       map_api_get_camera_position,
       map_api_move_camera,
       map_api_get_ground,
-      map_api_draw_sprite,  // TODO allow to also draw a surface or a text surface
+      map_api_draw_visual,
+      map_api_draw_sprite,
       map_api_get_crystal_state,
       map_api_set_crystal_state,
       map_api_change_crystal_state,
@@ -813,6 +815,8 @@ class LuaContext {
       entity_api_get_position,
       entity_api_set_position,
       entity_api_get_center_position,
+      entity_api_get_facing_position,
+      entity_api_get_facing_entity,
       entity_api_get_ground_position,
       entity_api_get_ground_below,
       entity_api_get_bounding_box,
@@ -894,6 +898,8 @@ class LuaContext {
       teletransporter_api_set_destination_map,
       teletransporter_api_get_destination_name,
       teletransporter_api_set_destination_name,
+      npc_api_is_traversable,
+      npc_api_set_traversable,
       chest_api_is_open,
       chest_api_set_open,
       chest_api_get_treasure,
@@ -1263,6 +1269,7 @@ class LuaContext {
     void on_post_draw();
     void on_position_changed(const Point& xy, int layer);
     void on_obstacle_reached(Movement& movement);
+    void on_movement_started(Movement& movement);
     void on_movement_changed(Movement& movement);
     void on_movement_finished();
     void on_looked();

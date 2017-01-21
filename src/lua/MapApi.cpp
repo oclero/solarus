@@ -75,7 +75,7 @@ const char* move_camera_code =
 "local hero = map:get_hero()\n"
 "delay_before = delay_before or 1000\n"
 "delay_after = delay_after or 1000\n"
-"local old_x, old_y = camera:get_position()\n"
+"local back_x, back_y = camera:get_position_to_track(hero)\n"
 "game:set_suspended(true)\n"
 "camera:start_manual()\n"
 "local movement = sol.movement.create(\"target\")\n"
@@ -87,7 +87,7 @@ const char* move_camera_code =
 "    callback()\n"
 "    local timer_2 = sol.timer.start(map, delay_after, function()\n"
 "      local movement = sol.movement.create(\"target\")\n"
-"      movement:set_target(old_x, old_y)\n"
+"      movement:set_target(back_x, back_y)\n"
 "      movement:set_ignore_obstacles(true)\n"
 "      movement:set_speed(speed)\n"
 "      movement:start(camera, function()\n"
@@ -133,6 +133,7 @@ void LuaContext::register_map_module() {
       { "get_camera_position", map_api_get_camera_position },
       { "move_camera", map_api_move_camera },
       { "get_ground", map_api_get_ground },
+      { "draw_visual", map_api_draw_visual },
       { "draw_sprite", map_api_draw_sprite },
       { "get_crystal_state", map_api_get_crystal_state },
       { "set_crystal_state", map_api_set_crystal_state },
@@ -1661,7 +1662,7 @@ int LuaContext::map_api_get_camera_position(lua_State* l) {
   return LuaTools::exception_boundary_handle(l, [&] {
 
     get_lua_context(l).warning_deprecated("map:get_camera_position()",
-        "Use map:get_camera():get_position() instead.");
+        "Use map:get_camera():get_bounding_box() instead.");
 
     const Map& map = *check_map(l, 1);
 
@@ -1739,6 +1740,26 @@ int LuaContext::map_api_get_ground(lua_State* l) {
 }
 
 /**
+ * \brief Implementation of map:draw_visual().
+ * \param l The Lua context that is calling this function.
+ * \return Number of values to return to Lua.
+ */
+int LuaContext::map_api_draw_visual(lua_State* l) {
+
+  return LuaTools::exception_boundary_handle(l, [&] {
+
+    Map& map = *check_map(l, 1);
+    Drawable& drawable = *check_drawable(l, 2);
+    int x = LuaTools::check_int(l, 3);
+    int y = LuaTools::check_int(l, 4);
+
+    map.draw_visual(drawable, x, y);
+
+    return 0;
+  });
+}
+
+/**
  * \brief Implementation of map:draw_sprite().
  * \param l The Lua context that is calling this function.
  * \return Number of values to return to Lua.
@@ -1746,12 +1767,16 @@ int LuaContext::map_api_get_ground(lua_State* l) {
 int LuaContext::map_api_draw_sprite(lua_State* l) {
 
   return LuaTools::exception_boundary_handle(l, [&] {
+
+    get_lua_context(l).warning_deprecated("map:draw_sprite()",
+        "Use map:draw_visual() instead.");
+
     Map& map = *check_map(l, 1);
     Sprite& sprite = *check_sprite(l, 2);
     int x = LuaTools::check_int(l, 3);
     int y = LuaTools::check_int(l, 4);
 
-    map.draw_sprite(sprite, x, y);
+    map.draw_visual(sprite, x, y);
 
     return 0;
   });
